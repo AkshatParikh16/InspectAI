@@ -1,0 +1,41 @@
+# Environment
+.env
+.venv
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+# Build
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Database
+*.duckdb
+*.duckdb.wal
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tool caches
+.ty_cache/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
