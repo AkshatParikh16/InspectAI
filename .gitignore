@@ -21,7 +21,6 @@ build/
 # Database
 *.duckdb
 *.duckdb.wal
-data/
 
 # OS
 .DS_Store

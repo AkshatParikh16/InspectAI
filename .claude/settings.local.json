@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(uv run *)",
+      "Bash(uv run python -c ' *)",
+      "Bash(git -C C:/Users/aksha/Projects/InspectAI status)",
+      "Bash(git -C C:/Users/aksha/Projects/InspectAI log --oneline -3)",
+      "Bash(git -C C:/Users/aksha/Projects/InspectAI remote -v)",
+      "Bash(git -C C:/Users/aksha/Projects/InspectAI add .)"
+    ]
+  }
+}

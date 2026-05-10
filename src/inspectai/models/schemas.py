@@ -34,6 +34,115 @@ class Priority(str, Enum):
     LOW = "LOW"
 
 
+# ─── Shared base config ───────────────────────────────────────────
+
+class ToneConfig(BaseModel):
+    """Controls how the AI system should communicate."""
+    formality: str = "professional"     # professional, formal, technical
+    language: str = "en"                # ISO 639-1 language code
+    empathy_required: bool = True       # must show empathy on complaints
+    profanity_filter: bool = True       # block inappropriate language
+
+class ComplianceConfig(BaseModel):
+    """Regulatory and legal requirements per market."""
+    gdpr_enabled: bool = False          # EU markets
+    hipaa_enabled: bool = False         # US healthcare
+    pci_dss_enabled: bool = False       # payment processing
+    data_residency: Optional[str] = None  # "EU", "US", "APAC"
+    pii_redaction: bool = False         # redact personal info in logs
+    audit_trail_required: bool = False  # log every decision
+
+# ─── Customer Support specific config ────────────────────────────
+
+class EscalationConfig(BaseModel):
+    """When and how to escalate to a human agent."""
+    refund_threshold: Optional[float] = None   # escalate above this amount
+    sentiment_threshold: float = 0.3           # escalate if anger score above this
+    max_turns_before_escalate: int = 5         # escalate after N failed turns
+    escalate_on_keywords: list[str] = []       # e.g. ["lawyer", "lawsuit", "fraud"]
+    operating_hours: Optional[str] = None      # e.g. "9am-5pm EST Mon-Fri"
+    after_hours_behavior: str = "ticket"       # ticket, email, or voicemail
+
+class CustomerSupportConfig(BaseModel):
+    """Full configuration for a customer support AI system."""
+    company_name: str
+    industry: str                              # retail, fintech, healthcare, saas
+    escalation: EscalationConfig = EscalationConfig()
+    tone: ToneConfig = ToneConfig()
+    compliance: ComplianceConfig = ComplianceConfig()
+    allowed_actions: list[str] = []            # e.g. ["refund", "cancel", "reschedule"]
+    prohibited_actions: list[str] = []        # e.g. ["delete_account", "waive_fee"]
+    knowledge_base_topics: list[str] = []     # what the AI knows about
+    max_refund_amount: Optional[float] = None # auto-process below this, escalate above
+    return_window_days: Optional[int] = None  # e.g. 30 days return policy
+
+# ─── RAG system specific config ───────────────────────────────────
+
+class RetrievalConfig(BaseModel):
+    """How the RAG system retrieves information."""
+    retrieval_strategy: str = "hybrid"        # dense, sparse, hybrid, graph
+    top_k: int = 5                            # number of chunks to retrieve
+    confidence_threshold: float = 0.7         # minimum score to use a chunk
+    reranking_enabled: bool = False           # use a reranker model
+    max_context_length: int = 4000            # max tokens in context window
+
+class RAGConfig(BaseModel):
+    """Full configuration for a RAG AI system."""
+    company_name: str
+    domain: str                               # legal, medical, finance, general
+    retrieval: RetrievalConfig = RetrievalConfig()
+    compliance: ComplianceConfig = ComplianceConfig()
+    hallucination_tolerance: float = 0.0      # 0.0 = zero tolerance
+    citation_required: bool = True            # must cite sources
+    out_of_scope_behavior: str = "refuse"     # refuse or escalate
+    document_access_control: bool = False     # RBAC on documents
+    supported_languages: list[str] = ["en"]   # ISO language codes
+
+# ─── Multi-agent system specific config ───────────────────────────
+
+class AgentBudgetConfig(BaseModel):
+    """Cost and resource limits per agent run."""
+    max_cost_per_run: Optional[float] = None  # in USD
+    max_tokens_per_run: Optional[int] = None
+    max_steps: int = 20                       # prevent infinite loops
+    timeout_seconds: int = 300               # 5 minute default
+
+class MultiAgentConfig(BaseModel):
+    """Full configuration for a multi-agent AI system."""
+    company_name: str
+    use_case: str                             # coding, research, support, ops
+    budget: AgentBudgetConfig = AgentBudgetConfig()
+    compliance: ComplianceConfig = ComplianceConfig()
+    human_in_loop_required: bool = False      # require human approval mid-task
+    human_in_loop_triggers: list[str] = []   # e.g. ["delete", "payment", "deploy"]
+    allowed_tools: list[str] = []            # tools the agents can use
+    prohibited_tools: list[str] = []        # tools that are blocked
+    parallel_agents_allowed: bool = True     # can agents run simultaneously
+    audit_every_step: bool = False           # log every agent decision
+
+# ─── Master config that wraps everything ──────────────────────────
+
+class SystemConfig(BaseModel):
+    """
+    Master configuration for any AI system being tested by InspectAI.
+    Pass this to the ScenarioGenerator to get policy-aware test scenarios.
+    """
+    system_type: SystemType
+    customer_support: Optional[CustomerSupportConfig] = None
+    rag: Optional[RAGConfig] = None
+    multi_agent: Optional[MultiAgentConfig] = None
+
+    def get_active_config(self):
+        """Returns the config relevant to the system type."""
+        if self.system_type == SystemType.CUSTOMER_SUPPORT:
+            return self.customer_support
+        elif self.system_type == SystemType.RAG:
+            return self.rag
+        elif self.system_type == SystemType.MULTI_AGENT:
+            return self.multi_agent
+        return None
+
+
 class Scenario(BaseModel):
     id: UUID = Field(default_factory=uuid4, description="Unique identifier for the scenario")
     system_type: SystemType = Field(..., description="Type of AI system being tested")
