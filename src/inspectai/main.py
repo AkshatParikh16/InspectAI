@@ -8,8 +8,10 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from inspectai.config import settings
+from inspectai.core.demo import DemoMode
 from inspectai.core.logging import get_logger, setup_logging
 from inspectai.core.middleware import _stats, limiter, logging_middleware
+from inspectai.core.self_test import SelfTest, SelfTestResult
 
 logger = get_logger(__name__)
 
@@ -68,6 +70,24 @@ async def metrics() -> dict:
         "max_concurrent_tests": settings.max_concurrent_tests,
         "rate_limit_per_minute": settings.rate_limit_per_minute,
     }
+
+
+@app.get("/demo")
+async def demo() -> dict:
+    d = DemoMode()
+    config = d.get_demo_config()
+    scenarios = d.get_demo_scenarios()
+    results = d.get_demo_results()
+    return {
+        "config": config.model_dump(),
+        "scenarios": [s.model_dump() for s in scenarios],
+        "results": results.model_dump(),
+    }
+
+
+@app.get("/self-test")
+async def self_test() -> SelfTestResult:
+    return SelfTest().run_self_test()
 
 
 @app.get("/")

@@ -100,6 +100,20 @@ InspectAI/
     └── test_analyzers.py
 ```
 
+## Production Readiness
+
+InspectAI ships with 7 production-grade fixes built in:
+
+| # | Fix | What it does |
+|---|-----|--------------|
+| 1 | **Example conversation upload** | Seed scenario generation from real conversations via `ExampleConversation` fields on each config type |
+| 2 | **Judge calibration** | Track human agreement (Cohen's κ), TPR/TNR, and label counts per judge and task type on every `TestResult` |
+| 3 | **Dry run mode** | Run safely with `TestRunConfig` — budget limits, production target warnings, and staging acknowledgement gates |
+| 4 | **Cost estimation** | `CostEstimate` tracks token spend before and after each run with per-phase breakdown (generation, testing, analysis, fixes) |
+| 5 | **Trend tracking** | `TestRunTrend` compares pass rates across runs, measures improvement rate, and logs which fixes were applied between runs |
+| 6 | **Demo mode** | `GET /demo` returns a fully pre-seeded ShopEasy retail walkthrough — 20 scenarios, realistic failure breakdown, cost data |
+| 7 | **Self-test** | `GET /self-test` verifies every component (generator, analyzer, recommender, database, LLM) before your first real test |
+
 ## Roadmap
 
 - **Continuous monitoring mode** — run scheduled test suites against production endpoints and alert on pass-rate regressions.
