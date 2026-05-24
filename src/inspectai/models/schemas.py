@@ -40,6 +40,17 @@ class ScenarioGenerationStrategy(StrEnum):
     SMART_MIX = "SMART_MIX"
 
 
+class SystemMaturity(StrEnum):
+    NEW = "NEW"              # no history, pre-deployment
+    RUNNING = "RUNNING"      # active, some history
+    RELIABLE = "RELIABLE"    # high pass rate, maintenance mode
+
+
+class DeploymentStatus(StrEnum):
+    PRE_DEPLOYMENT = "PRE_DEPLOYMENT"
+    POST_DEPLOYMENT = "POST_DEPLOYMENT"
+
+
 # ─── Fix 1: Example conversation ──────────────────────────────────
 
 class ExampleConversation(BaseModel):
@@ -47,6 +58,126 @@ class ExampleConversation(BaseModel):
     content: str
     outcome: str | None = None       # what happened, was it good or bad
     tags: list[str] = []
+
+
+class UserPersona(BaseModel):
+    """
+    Represents a specific type of human user with distinct
+    communication style and behavioral patterns.
+    Used by ScenarioGenerator to produce humanized scenarios.
+    """
+    name: str
+    age_range: str
+    communication_style: str
+    emotional_state: str
+    tech_savviness: str                    # very_low, low, medium, high
+    typical_issues: list[str] = []
+    example_phrases: list[str] = []
+    industry_relevance: list[str] = []     # which industries this persona applies to
+    failure_discovery_rate: float = 0.0    # updated over time by learning system
+    times_used: int = 0
+    status: str = "active"                 # active, retired, high_value
+    created_from: str = "universal"        # universal, industry, behavioral, hybrid
+
+
+class PersonaGenerationConfig(BaseModel):
+    """
+    Controls how many and what type of personas to generate
+    based on how much context the company has provided.
+    """
+    universal_personas: int = 20           # always included
+    industry_personas: int = 0             # added when description provided (up to 10 more)
+    behavioral_personas: int = 0           # added when conversations provided (up to 15 more)
+    hybrid_personas: int = 0               # added when both provided (up to 5 more)
+
+    @property
+    def total_personas(self) -> int:
+        return (
+            self.universal_personas +
+            self.industry_personas +
+            self.behavioral_personas +
+            self.hybrid_personas
+        )
+
+    @classmethod
+    def from_available_context(
+        cls,
+        has_description: bool,
+        has_conversations: bool
+    ) -> "PersonaGenerationConfig":
+        """
+        Automatically determines persona counts based on
+        what context the company has provided.
+        No description, no conversations = 20 universal.
+        Description only = 30 total.
+        Conversations only = 40 total.
+        Both = 50 total.
+        """
+        if has_description and has_conversations:
+            return cls(
+                universal_personas=20,
+                industry_personas=10,
+                behavioral_personas=15,
+                hybrid_personas=5
+            )
+        elif has_description:
+            return cls(
+                universal_personas=20,
+                industry_personas=10,
+                behavioral_personas=0,
+                hybrid_personas=0
+            )
+        elif has_conversations:
+            return cls(
+                universal_personas=20,
+                industry_personas=0,
+                behavioral_personas=20,
+                hybrid_personas=0
+            )
+        else:
+            return cls(
+                universal_personas=20,
+                industry_personas=0,
+                behavioral_personas=0,
+                hybrid_personas=0
+            )
+
+
+class PersonaEffectiveness(BaseModel):
+    """
+    Tracks how effective each persona is at finding failures.
+    Used by the learning system to retire weak personas
+    and amplify high-value ones.
+    """
+    persona_name: str
+    system_type: SystemType
+    times_used: int = 0
+    failure_discovery_rate: float = 0.0
+    top_failure_types: list[FailureType] = []
+    status: str = "active"                 # active, retired, high_value
+    last_updated: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )
+
+
+class ConversationInsights(BaseModel):
+    """
+    Extracted insights from a company's existing conversations.
+    Used to generate company-specific personas and scenarios
+    that match how their actual users communicate.
+    """
+    dominant_language_patterns: list[str] = []
+    top_issue_categories: list[str] = []
+    failure_triggers: list[str] = []
+    successful_resolutions: list[str] = []
+    user_vocabulary: list[str] = []
+    average_message_length: int = 0
+    emotional_tone_distribution: dict = {}
+    extracted_personas: list[str] = []
+    total_conversations_analyzed: int = 0
+    analyzed_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )
 
 
 # ─── Shared base config ───────────────────────────────────────────
@@ -91,6 +222,11 @@ class CustomerSupportConfig(BaseModel):
     max_refund_amount: float | None = None # auto-process below this, escalate above
     return_window_days: int | None = None  # e.g. 30 days return policy
     example_conversations: list[ExampleConversation] = []
+    chatbot_description: str | None = None
+    use_case_categories: list[str] = []
+    conversation_insights: ConversationInsights | None = None
+    maturity: SystemMaturity = SystemMaturity.NEW
+    deployment_status: DeploymentStatus = DeploymentStatus.PRE_DEPLOYMENT
 
 # ─── RAG system specific config ───────────────────────────────────
 
@@ -114,6 +250,11 @@ class RAGConfig(BaseModel):
     document_access_control: bool = False     # RBAC on documents
     supported_languages: list[str] = ["en"]   # ISO language codes
     example_queries: list[ExampleConversation] = []
+    chatbot_description: str | None = None
+    use_case_categories: list[str] = []
+    conversation_insights: ConversationInsights | None = None
+    maturity: SystemMaturity = SystemMaturity.NEW
+    deployment_status: DeploymentStatus = DeploymentStatus.PRE_DEPLOYMENT
 
 # ─── Multi-agent system specific config ───────────────────────────
 
@@ -137,6 +278,11 @@ class MultiAgentConfig(BaseModel):
     parallel_agents_allowed: bool = True     # can agents run simultaneously
     audit_every_step: bool = False           # log every agent decision
     example_tasks: list[ExampleConversation] = []
+    chatbot_description: str | None = None
+    use_case_categories: list[str] = []
+    conversation_insights: ConversationInsights | None = None
+    maturity: SystemMaturity = SystemMaturity.NEW
+    deployment_status: DeploymentStatus = DeploymentStatus.PRE_DEPLOYMENT
 
 # ─── Master config that wraps everything ──────────────────────────
 
@@ -234,6 +380,8 @@ class TestRunConfig(BaseModel):
     adversarial_weight: float = 0.15
     new_edge_case_weight: float = 0.50
     regression_weight: float = 0.20
+    deployment_status: DeploymentStatus = DeploymentStatus.POST_DEPLOYMENT
+    recommended_scenario_count: int | None = None
 
 
 class TestRun(BaseModel):
@@ -304,6 +452,8 @@ class InspectAILearning(BaseModel):
     judge_corrections: list[JudgeCorrection] = []
     total_corrections: int = 0
     last_learning_update: datetime | None = None
+    persona_effectiveness: list[PersonaEffectiveness] = []
+    conversation_insights_cache: dict = {}
 
 
 class FixRecommendation(BaseModel):
