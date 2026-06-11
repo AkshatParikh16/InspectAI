@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InspectAI — AI System Evaluation</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --bg-base:       #0A0A0F;
+      --bg-surface:    #12121A;
+      --bg-elevated:   #1A1A26;
+      --bg-hover:      #202030;
+      --border:        #2A2A3A;
+      --border-bright: #3A3A50;
+      --pass:          #22C55E;
+      --pass-dim:      rgba(34, 197, 94,  0.12);
+      --fail:          #EF4444;
+      --fail-dim:      rgba(239, 68,  68,  0.12);
+      --warn:          #F59E0B;
+      --warn-dim:      rgba(245, 158, 11,  0.12);
+      --text-primary:  #F1F1FA;
+      --text-secondary:#A0A0B8;
+      --text-dim:      #60607A;
+      --accent:        #6366F1;
+      --accent-light:  #818CF8;
+      --accent-dim:    rgba(99, 102, 241, 0.10);
+      --radius-sm:     6px;
+      --radius-md:     10px;
+      --radius-lg:     14px;
+      --sidebar-width: 220px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #root { height: 100vh; display: flex; }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4A4A65; }
+
+    /* Shared utility */
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Button base */
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+    }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    input, select, textarea {
+      font-family: inherit;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 8px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--text-dim); }
+
+    /* Range input */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+      border: none;
+      padding: 0;
+      height: 20px;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: var(--border-bright);
+      border-radius: 2px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: -6px;
+      cursor: pointer;
+      border: 2px solid var(--bg-base);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React 18 + Babel Standalone -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Mock data (plain JS, sets window.MOCK_DATA) -->
+  <script src="./mockData.js"></script>
+
+  <!-- Components loaded in dependency order -->
+  <script type="text/babel" src="./components/Sidebar.jsx"></script>
+  <script type="text/babel" src="./components/Overview.jsx"></script>
+  <script type="text/babel" src="./components/RunTests.jsx"></script>
+  <script type="text/babel" src="./components/TestResults.jsx"></script>
+  <script type="text/babel" src="./components/FailureAnalysis.jsx"></script>
+  <script type="text/babel" src="./components/FixRecommendations.jsx"></script>
+
+  <!-- Main entry point (last) -->
+  <script type="text/babel" src="./app.jsx"></script>
+</body>
+</html>

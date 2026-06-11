@@ -727,3 +727,62 @@ class FixRecommendation(BaseModel):
     recommendation: str = Field(..., description="The fix recommendation")
     priority: Priority = Field(..., description="Priority level of the fix")
     example_fix: str | None = Field(None, description="Example of how to implement the fix")
+
+
+class FixType(StrEnum):
+    PROMPT_ADDITION = "PROMPT_ADDITION"
+    GUARDRAIL_RULE = "GUARDRAIL_RULE"
+    FINE_TUNING_DATA = "FINE_TUNING_DATA"
+    ARCHITECTURE_CHANGE = "ARCHITECTURE_CHANGE"
+    POLICY_CLARIFICATION = "POLICY_CLARIFICATION"
+
+
+class DetailedFixRecommendation(BaseModel):
+    """
+    One concrete fix recommendation for a specific failure pattern.
+    All fixes labeled as suggestions — company adapts to their system.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    failure_pattern: str
+    failure_type: FailureType
+    affected_scenarios: int
+    fix_type: FixType
+    title: str
+    problem: str
+    suggested_fix: str
+    implementation_steps: list[str] = []
+    verification_scenarios: list[str] = []
+    suggested_priority: Priority
+    company_priority: Priority | None = None
+    estimated_impact: str = ""
+    disclaimer: str = (
+        "This is a suggested pattern based on observed failures. "
+        "Review and adapt to your actual system before implementing."
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )
+
+
+class FixRecommendationReport(BaseModel):
+    """
+    Complete fix recommendation report for one test run.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    system_type: SystemType
+    company_name: str
+    pass_rate: float
+    total_failures: int
+    total_fixes: int
+    fixes: list[DetailedFixRecommendation] = []
+    estimated_improvement: str = ""
+    high_priority_count: int = 0
+    medium_priority_count: int = 0
+    low_priority_count: int = 0
+    fine_tuning_pairs_available: int = 0
+    generated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )
+    generation_cost_usd: float = 0.0
