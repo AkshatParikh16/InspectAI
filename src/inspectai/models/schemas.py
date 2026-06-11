@@ -51,6 +51,139 @@ class DeploymentStatus(StrEnum):
     POST_DEPLOYMENT = "POST_DEPLOYMENT"
 
 
+# ─── Judge and evaluation models ─────────────────────────────────
+
+class ModelFamily(StrEnum):
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
+    GOOGLE = "google"
+    META = "meta"
+    MISTRAL = "mistral"
+    XAI = "xai"
+    DEEPSEEK = "deepseek"
+    ALIBABA = "alibaba"
+    COHERE = "cohere"
+    SPECIALIZED = "specialized"   # Prometheus 2, Galileo Luna-2
+    OPEN_SOURCE = "open_source"
+    UNKNOWN = "unknown"
+
+
+class ModelCapabilityTier(StrEnum):
+    FRONTIER = "frontier"    # GPT-5, Claude Opus 4, Gemini 2.5 Pro
+    STANDARD = "standard"    # Claude Sonnet, GPT-4o, Gemini Flash
+    LIGHT = "light"          # Claude Haiku, GPT-4o-mini
+
+
+class EvaluationMethod(StrEnum):
+    RULE_BASED = "RULE_BASED"
+    LLM_JUDGE = "LLM_JUDGE"
+    PROGRAMMATIC = "PROGRAMMATIC"
+    HYBRID = "HYBRID"
+
+
+class RAGQuestionType(StrEnum):
+    SIMPLE = "SIMPLE"
+    COMPLEX = "COMPLEX"
+    DISTRACTING = "DISTRACTING"
+    SITUATIONAL = "SITUATIONAL"
+    DOUBLE = "DOUBLE"
+    CONVERSATIONAL = "CONVERSATIONAL"
+
+
+class RAGComponentType(StrEnum):
+    GENERATOR = "GENERATOR"
+    RETRIEVER = "RETRIEVER"
+    REWRITER = "REWRITER"
+    ROUTER = "ROUTER"
+    KNOWLEDGE_BASE = "KNOWLEDGE_BASE"
+
+
+class JudgeConfig(BaseModel):
+    """
+    Configuration for the three-judge evaluation panel.
+    Judge 1 is always a specialized eval model (Prometheus 2 or
+    Galileo Luna-2). Judges 2 and 3 are randomly selected from
+    the diverse pool excluding the target model family.
+    """
+    target_model_family: ModelFamily = ModelFamily.UNKNOWN
+    target_model: str | None = None
+    target_capability_tier: ModelCapabilityTier = ModelCapabilityTier.STANDARD
+    judge_count: int = 3
+    confidence_threshold: float = 0.75
+    human_review_threshold: float = 0.50
+    custom_judge_models: list[str] = []
+
+
+class TargetAPIConfig(BaseModel):
+    """
+    Flexible configuration for calling the target AI system.
+    Different companies have different API structures.
+    """
+    url: str
+    message_field: str = "message"
+    response_field: str = "message"
+    extra_fields: dict = {}
+    headers: dict = {}
+    timeout_seconds: int = 30
+    request_template: str | None = None
+
+
+class RubricCriterion(BaseModel):
+    """
+    A single criterion in an evaluation rubric.
+    Pass/fail with a clear description of what constitutes each.
+    """
+    name: str
+    description: str
+    pass_condition: str
+    fail_condition: str
+    weight: float = 1.0
+    required: bool = True
+
+
+class EvaluationRubric(BaseModel):
+    """
+    Complete rubric for evaluating a specific system type.
+    Generated from SystemConfig — company policies drive criteria.
+    """
+    system_type: SystemType
+    company_name: str
+    criteria: list[RubricCriterion] = []
+    pass_threshold: float = 1.0
+    evaluation_method: EvaluationMethod = EvaluationMethod.HYBRID
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )
+
+
+class JudgeVerdict(BaseModel):
+    """
+    Verdict from a single judge in the panel.
+    """
+    judge_model: str
+    judge_family: ModelFamily
+    passed: bool
+    failure_type: FailureType | None = None
+    confidence: float
+    reasoning: str = ""
+    criteria_results: dict = {}
+    evaluation_method: EvaluationMethod = EvaluationMethod.LLM_JUDGE
+
+
+class PanelVerdict(BaseModel):
+    """
+    Combined verdict from the three-judge panel.
+    Majority vote with confidence based on agreement level.
+    """
+    passed: bool
+    confidence: float
+    agreement_level: str
+    individual_verdicts: list[JudgeVerdict] = []
+    failure_type: FailureType | None = None
+    requires_human_review: bool = False
+    human_review_reason: str = ""
+
+
 # ─── Fix 1: Example conversation ──────────────────────────────────
 
 class ExampleConversation(BaseModel):
@@ -208,6 +341,10 @@ class EscalationConfig(BaseModel):
     escalate_on_keywords: list[str] = []       # e.g. ["lawyer", "lawsuit", "fraud"]
     operating_hours: str | None = None      # e.g. "9am-5pm EST Mon-Fri"
     after_hours_behavior: str = "ticket"       # ticket, email, or voicemail
+    max_discount_percent: float = 0.0
+    # 0.0 = AI cannot offer any discount
+    # 10.0 = AI can offer up to 10% autonomously
+    # Above this threshold always escalate to human
 
 class CustomerSupportConfig(BaseModel):
     """Full configuration for a customer support AI system."""
@@ -298,6 +435,7 @@ class SystemConfig(BaseModel):
     example_conversations: list[dict] = []  # Real conversation examples to seed scenario generation
     example_count: int = 0                  # How many examples were provided
     generation_strategy: ScenarioGenerationStrategy = ScenarioGenerationStrategy.SMART_MIX
+    judge_config: JudgeConfig = Field(default_factory=JudgeConfig)
 
     def get_active_config(self):
         """Returns the config relevant to the system type."""
@@ -350,6 +488,10 @@ class TestResult(BaseModel):
     fix_recommendation: str | None = Field(None, description="Recommended fix if test failed")
     latency_ms: float = Field(..., description="Response latency in milliseconds")
     judge_calibration: JudgeCalibration | None = None
+    panel_verdict: PanelVerdict | None = None
+    evaluation_method: EvaluationMethod = EvaluationMethod.HYBRID
+    rag_component: RAGComponentType | None = None
+    rag_question_type: RAGQuestionType | None = None
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC), description="Creation timestamp"
     )
@@ -382,6 +524,8 @@ class TestRunConfig(BaseModel):
     regression_weight: float = 0.20
     deployment_status: DeploymentStatus = DeploymentStatus.POST_DEPLOYMENT
     recommended_scenario_count: int | None = None
+    target_api_config: TargetAPIConfig | None = None
+    judge_config: JudgeConfig = Field(default_factory=JudgeConfig)
 
 
 class TestRun(BaseModel):

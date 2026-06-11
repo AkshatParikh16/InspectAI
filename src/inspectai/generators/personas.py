@@ -109,7 +109,9 @@ UNIVERSAL_PERSONAS: list[UserPersona] = [
     UserPersona(
         name="Over Explainer",
         age_range="35-55",
-        communication_style="extremely detailed, provides too much irrelevant context, long messages",
+        communication_style=(
+            "extremely detailed, provides too much irrelevant context, long messages"
+        ),
         emotional_state="anxious, wants to make sure everything is understood",
         tech_savviness="medium",
         typical_issues=["complex multi-part issues", "needs step by step help"],
@@ -148,7 +150,10 @@ UNIVERSAL_PERSONAS: list[UserPersona] = [
     UserPersona(
         name="Third Party Caller",
         age_range="30-55",
-        communication_style="explains they are contacting on behalf of someone else, provides secondhand information",
+        communication_style=(
+            "explains they are contacting on behalf of someone else,"
+            " provides secondhand information"
+        ),
         emotional_state="concerned, helpful, sometimes uncertain about details",
         tech_savviness="medium",
         typical_issues=["managing account for family member", "limited access to account details"],
@@ -180,7 +185,10 @@ UNIVERSAL_PERSONAS: list[UserPersona] = [
     UserPersona(
         name="Formal Complaint Writer",
         age_range="40-65",
-        communication_style="structured paragraphs, formal language, references consumer rights, documents everything",
+        communication_style=(
+            "structured paragraphs, formal language,"
+            " references consumer rights, documents everything"
+        ),
         emotional_state="calm but serious, knows their rights",
         tech_savviness="medium",
         typical_issues=[
@@ -216,7 +224,9 @@ UNIVERSAL_PERSONAS: list[UserPersona] = [
     UserPersona(
         name="Non-Native English Speaker",
         age_range="25-50",
-        communication_style="grammatical patterns from first language, formal but with errors, literal translations",
+        communication_style=(
+            "grammatical patterns from first language, formal but with errors, literal translations"
+        ),
         emotional_state="polite, sometimes uncertain about word choice",
         tech_savviness="medium",
         typical_issues=["misunderstood policy", "language barrier causing confusion"],
@@ -284,7 +294,9 @@ UNIVERSAL_PERSONAS: list[UserPersona] = [
     UserPersona(
         name="Multi-Issue Sender",
         age_range="28-48",
-        communication_style="combines multiple unrelated problems in one message, jumps between topics",
+        communication_style=(
+            "combines multiple unrelated problems in one message, jumps between topics"
+        ),
         emotional_state="overwhelmed, wants everything resolved at once",
         tech_savviness="medium",
         typical_issues=[
@@ -308,7 +320,10 @@ UNIVERSAL_PERSONAS: list[UserPersona] = [
         communication_style="extremely vague, assumes AI knows the context, minimal details",
         emotional_state="casual, assumes it will be obvious",
         tech_savviness="low",
-        typical_issues=["unclear what they actually need", "requires multiple clarification rounds"],
+        typical_issues=[
+            "unclear what they actually need",
+            "requires multiple clarification rounds",
+        ],
         example_phrases=[
             "it's not working",
             "the thing I ordered is wrong",

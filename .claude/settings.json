@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m ruff check src/inspectai/runners/test_runner.py --fix)"
+    ]
+  }
+}
