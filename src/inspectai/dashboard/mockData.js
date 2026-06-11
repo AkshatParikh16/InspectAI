@@ -1,5 +1,6 @@
-// InspectAI Mock Data — realistic demo data for dashboard
-window.MOCK_DATA = {
+// Mock data removed — dashboard now uses real data from /api/runs
+// This file is intentionally empty.
+window._MOCK_DATA_REMOVED = {
   passRate: 0.73,
   totalScenarios: 200,
   systemsTested: 8,

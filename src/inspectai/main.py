@@ -1,12 +1,16 @@
 from contextlib import asynccontextmanager
 
+import os
+
 import duckdb
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from inspectai.api.runs import router as runs_router
 from inspectai.config import settings
 from inspectai.core.demo import DemoMode
 from inspectai.core.logging import get_logger, setup_logging
@@ -42,6 +46,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(runs_router)
+
+# Serve the React dashboard at /dashboard
+_dashboard_dir = os.path.join(os.path.dirname(__file__), "dashboard")
+if os.path.isdir(_dashboard_dir):
+    app.mount("/dashboard", StaticFiles(directory=_dashboard_dir, html=True), name="dashboard")
 
 
 @app.get("/health")

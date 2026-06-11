@@ -9,6 +9,7 @@
     rel="stylesheet"
   />
   <style>
+    /* ── Design tokens ── */
     :root {
       --bg-base:       #0A0A0F;
       --bg-surface:    #12121A;
@@ -17,17 +18,17 @@
       --border:        #2A2A3A;
       --border-bright: #3A3A50;
       --pass:          #22C55E;
-      --pass-dim:      rgba(34, 197, 94,  0.12);
+      --pass-dim:      rgba(34,197,94,  0.12);
       --fail:          #EF4444;
-      --fail-dim:      rgba(239, 68,  68,  0.12);
+      --fail-dim:      rgba(239,68, 68, 0.12);
       --warn:          #F59E0B;
-      --warn-dim:      rgba(245, 158, 11,  0.12);
+      --warn-dim:      rgba(245,158,11, 0.12);
       --text-primary:  #F1F1FA;
       --text-secondary:#A0A0B8;
       --text-dim:      #60607A;
       --accent:        #6366F1;
       --accent-light:  #818CF8;
-      --accent-dim:    rgba(99, 102, 241, 0.10);
+      --accent-dim:    rgba(99,102,241, 0.10);
       --radius-sm:     6px;
       --radius-md:     10px;
       --radius-lg:     14px;
@@ -35,9 +36,7 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     html, body { height: 100%; overflow: hidden; }
-
     body {
       background: var(--bg-base);
       color: var(--text-primary);
@@ -46,25 +45,16 @@
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
-
     #root { height: 100vh; display: flex; }
 
-    /* Scrollbars */
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #4A4A65; }
 
-    /* Shared utility */
     .mono { font-family: 'JetBrains Mono', monospace; }
 
-    /* Button base */
-    button {
-      font-family: inherit;
-      cursor: pointer;
-      border: none;
-      outline: none;
-    }
+    button { font-family: inherit; cursor: pointer; border: none; outline: none; }
     button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     input, select, textarea {
@@ -81,42 +71,79 @@
     input:focus, select:focus, textarea:focus { border-color: var(--accent); }
     input::placeholder, textarea::placeholder { color: var(--text-dim); }
 
-    /* Range input */
     input[type=range] {
       -webkit-appearance: none;
       background: transparent;
-      border: none;
-      padding: 0;
-      height: 20px;
+      border: none; padding: 0; height: 20px;
     }
     input[type=range]::-webkit-slider-runnable-track {
-      height: 4px;
-      background: var(--border-bright);
-      border-radius: 2px;
+      height: 4px; background: var(--border-bright); border-radius: 2px;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 16px; height: 16px;
-      border-radius: 50%;
-      background: var(--accent);
-      margin-top: -6px;
-      cursor: pointer;
+      border-radius: 50%; background: var(--accent);
+      margin-top: -6px; cursor: pointer;
       border: 2px solid var(--bg-base);
     }
+
+    /* ── Responsive grid utilities ── */
+    .grid { display: grid; gap: 16px; }
+    .g-4 { grid-template-columns: repeat(4, 1fr); }
+    .g-3 { grid-template-columns: repeat(3, 1fr); }
+    .g-2 { grid-template-columns: 1fr 1fr; }
+    .g-sidebar { grid-template-columns: 1fr 320px; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .span-full { grid-column: 1 / -1; }
+
+    @media (max-width: 1200px) {
+      .g-4 { grid-template-columns: repeat(2, 1fr); }
+      .g-3 { grid-template-columns: 1fr 1fr; }
+      .span-3 { grid-column: span 2; }
+      .g-sidebar { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 860px) {
+      .g-4, .g-3, .g-2 { grid-template-columns: 1fr; }
+      .span-2, .span-3, .span-full { grid-column: 1; }
+      .g-sidebar { grid-template-columns: 1fr; }
+    }
+
+    /* ── Sidebar collapse on narrow screens ── */
+    .sidebar-label { display: inline; }
+    @media (max-width: 860px) {
+      .app-sidebar { width: 56px !important; min-width: 56px !important; }
+      .sidebar-label { display: none; }
+      .sidebar-footer { display: none !important; }
+      .sidebar-status { display: none !important; }
+    }
+
+    /* ── Page scroll container ── */
+    .page-scroll { flex: 1; overflow: auto; padding: 28px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    /* ── Table responsive wrapper ── */
+    .table-wrap { overflow-x: auto; }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
-  <!-- React 18 + Babel Standalone -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Mock data (plain JS, sets window.MOCK_DATA) -->
-  <script src="./mockData.js"></script>
+  <!-- API client (plain JS) -->
+  <script src="./api.js"></script>
 
-  <!-- Components loaded in dependency order -->
+  <!-- Components (Babel-transformed JSX, define window.X globals) -->
   <script type="text/babel" src="./components/Sidebar.jsx"></script>
   <script type="text/babel" src="./components/Overview.jsx"></script>
   <script type="text/babel" src="./components/RunTests.jsx"></script>
@@ -124,7 +151,7 @@
   <script type="text/babel" src="./components/FailureAnalysis.jsx"></script>
   <script type="text/babel" src="./components/FixRecommendations.jsx"></script>
 
-  <!-- Main entry point (last) -->
+  <!-- Main entry (last) -->
   <script type="text/babel" src="./app.jsx"></script>
 </body>
 </html>
