@@ -98,6 +98,109 @@ class RAGComponentType(StrEnum):
     KNOWLEDGE_BASE = "KNOWLEDGE_BASE"
 
 
+class DocumentSource(StrEnum):
+    UPLOADED = "UPLOADED"
+    SCRAPED_COMPANY_SITE = "SCRAPED_COMPANY_SITE"
+    SCRAPED_EXTERNAL = "SCRAPED_EXTERNAL"
+    SYNTHETIC_CHALLENGING = "SYNTHETIC_CHALLENGING"
+
+
+class RAGTestingMode(StrEnum):
+    FROM_DOCUMENTS = "FROM_DOCUMENTS"
+    FROM_DOMAIN_TEMPLATES = "FROM_DOMAIN_TEMPLATES"
+    FROM_SYNTHETIC = "FROM_SYNTHETIC"
+    HYBRID = "HYBRID"
+
+
+class RAGDocument(BaseModel):
+    """
+    A single document used for RAG testing.
+    Can be uploaded, scraped, or synthetically generated.
+    """
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    content: str
+    source: str = ""
+    source_type: DocumentSource = DocumentSource.UPLOADED
+    page: int | None = None
+    section: str | None = None
+    metadata: dict = {}
+    is_synthetic: bool = False
+    generated_from_source: str | None = None
+    challenge_type: str | None = None
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )
+
+
+class RAGKnowledgeBase(BaseModel):
+    """
+    Collection of documents used for RAG system testing.
+    Supports all four document sources working together.
+    """
+
+    documents: list[RAGDocument] = []
+    testing_mode: RAGTestingMode = RAGTestingMode.HYBRID
+    max_documents_per_source: int = 10
+
+    @property
+    def real_documents(self) -> list[RAGDocument]:
+        return [d for d in self.documents if not d.is_synthetic]
+
+    @property
+    def synthetic_documents(self) -> list[RAGDocument]:
+        return [d for d in self.documents if d.is_synthetic]
+
+    @property
+    def total_content_length(self) -> int:
+        return sum(len(d.content) for d in self.documents)
+
+
+class DocumentProviderConfig(BaseModel):
+    """
+    Configuration for all four document sources.
+    Multiple sources can be active simultaneously.
+    InspectAI combines all sources into one knowledge base.
+    """
+
+    # Source 2A — company site scraping
+    company_website_url: str | None = None
+    scrape_paths: list[str] = []
+
+    # Source 2B — external URL scraping
+    external_urls: list[str] = []
+
+    # Source 3 — synthetic challenging generation
+    enable_synthetic: bool = True
+    challenge_types: list[str] = [
+        "multi_section",
+        "out_of_scope",
+        "ambiguous",
+        "contradictory",
+    ]
+    synthetic_count_per_real_doc: int = 2
+
+    synthetic_from_scratch: bool = False
+    # When True and no real documents available
+    # InspectAI generates realistic test documents from scratch
+
+    topics_to_generate: list[str] = []
+    # Topics for synthetic from-scratch generation
+    # e.g. ["financial reports", "research papers", "contracts"]
+
+    domain_for_generation: str = "general"
+    # Domain context for synthetic document generation
+
+    # Upload config
+    upload_endpoint: str | None = None
+    upload_field: str = "file"
+    upload_headers: dict = {}
+
+    # Scraping config
+    scrape_timeout_seconds: int = 10
+    max_content_length_per_page: int = 5000
+
+
 class JudgeConfig(BaseModel):
     """
     Configuration for the three-judge evaluation panel.
@@ -392,6 +495,8 @@ class RAGConfig(BaseModel):
     conversation_insights: ConversationInsights | None = None
     maturity: SystemMaturity = SystemMaturity.NEW
     deployment_status: DeploymentStatus = DeploymentStatus.PRE_DEPLOYMENT
+    knowledge_base: RAGKnowledgeBase | None = None
+    document_provider: DocumentProviderConfig | None = None
 
 # ─── Multi-agent system specific config ───────────────────────────
 
@@ -473,6 +578,21 @@ class Scenario(BaseModel):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC), description="Creation timestamp"
     )
+
+
+class GroundedScenario(BaseModel):
+    """
+    A scenario with known correct answer from source document.
+    Used for objective RAG evaluation — no LLM guessing needed.
+    """
+
+    scenario: "Scenario"
+    correct_answer: str
+    source_chunk: str
+    source_document_id: str
+    source_url: str = ""
+    question_type: RAGQuestionType = RAGQuestionType.SIMPLE
+    is_from_synthetic_doc: bool = False
 
 
 class TestResult(BaseModel):

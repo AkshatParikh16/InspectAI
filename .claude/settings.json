@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m ruff check src/inspectai/runners/test_runner.py --fix)"
+      "Bash(python -m ruff check src/inspectai/runners/test_runner.py --fix)",
+      "PowerShell(cd \"c:\\\\Users\\\\aksha\\\\Projects\\\\InspectAI\"; & \"$env:USERPROFILE\\\\.local\\\\bin\\\\uv.exe\" run ruff check src/inspectai/analyzers/failure_analyzer.py src/inspectai/core/learning_engine.py --fix 2>&1)",
+      "PowerShell(cd \"c:\\\\Users\\\\aksha\\\\Projects\\\\InspectAI\"; & \"$env:USERPROFILE\\\\.local\\\\bin\\\\uv.exe\" run python _verify.py; Remove-Item _verify.py 2>&1)"
     ]
   }
 }
