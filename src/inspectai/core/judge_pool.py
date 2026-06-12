@@ -2,18 +2,23 @@
 Judge pool for InspectAI evaluation panel.
 
 Architecture:
-- Judge 1 is always a specialized eval model — no family bias
-  - Standard tier target → Prometheus 2
-  - Frontier tier target → Galileo Luna-2
-- Judges 2 and 3 are randomly selected from diverse pool
+- Judge 1 is always Prometheus 2 (free, specialized eval model, no family bias)
+- Judges 2 and 3 are randomly selected from the active pool
   - Must be different family from target model
   - Must be same capability tier or higher
   - Must not duplicate each other or Judge 1
-  - Prometheus 2 CAN appear as Judge 2 or 3 if eligible
 - Three judges, majority vote
   - 3/3 agree → confidence 0.95
   - 2/3 agree → confidence 0.75
   - 1/3 agree → human review flag, confidence 0.33
+
+Active judges:
+  - prometheus-eval/prometheus-bgb-8x7b-v2.0  (free, always Judge 1)
+  - claude-sonnet-4-6                          (Anthropic credits)
+  - gpt-5                                      (OpenAI credits)
+
+All other judges are commented out in JUDGE_POOL — uncomment when
+credentials become available.
 """
 
 from __future__ import annotations
@@ -28,6 +33,14 @@ from inspectai.models.schemas import JudgeConfig, ModelCapabilityTier, ModelFami
 logger = structlog.get_logger()
 
 # ─── Judge definitions ────────────────────────────────────────────
+#
+# ACTIVE JUDGES (credentials available):
+#   - prometheus-eval  → free, self-hosted specialized eval model
+#   - claude-sonnet-4-6 → Anthropic credits (Claude 4.6)
+#   - gpt-5            → OpenAI credits (GPT-5)
+#
+# All other entries are commented out — add back when credits/access
+# are available.
 
 JUDGE_POOL: list[dict] = [
     # ── Specialized eval judges (no family bias) ──────────────────
@@ -35,104 +48,104 @@ JUDGE_POOL: list[dict] = [
         "model": "prometheus-eval/prometheus-bgb-8x7b-v2.0",
         "family": ModelFamily.SPECIALIZED,
         "tier": ModelCapabilityTier.STANDARD,
-        "description": "Open-source judge trained specifically for evaluation",
+        "description": "Open-source judge trained specifically for evaluation — free",
         "local": True,
     },
-    {
-        "model": "galileo-luna-2",
-        "family": ModelFamily.SPECIALIZED,
-        "tier": ModelCapabilityTier.FRONTIER,
-        "description": "Eval-specific frontier judge, beats general models on rubric scoring",
-        "local": False,
-    },
+    # {  # No credits — disabled
+    #     "model": "galileo-luna-2",
+    #     "family": ModelFamily.SPECIALIZED,
+    #     "tier": ModelCapabilityTier.FRONTIER,
+    #     "description": "Eval-specific frontier judge, beats general models on rubric scoring",
+    #     "local": False,
+    # },
 
     # ── Frontier tier ─────────────────────────────────────────────
+    # {  # No credits — disabled
+    #     "model": "claude-opus-4-20250514",
+    #     "family": ModelFamily.ANTHROPIC,
+    #     "tier": ModelCapabilityTier.FRONTIER,
+    #     "description": "Anthropic frontier model",
+    #     "local": False,
+    # },
     {
-        "model": "claude-opus-4-20250514",
-        "family": ModelFamily.ANTHROPIC,
-        "tier": ModelCapabilityTier.FRONTIER,
-        "description": "Anthropic frontier model",
-        "local": False,
-    },
-    {
-        "model": "gpt-4o",
+        "model": "gpt-5",
         "family": ModelFamily.OPENAI,
         "tier": ModelCapabilityTier.FRONTIER,
-        "description": "OpenAI frontier model",
+        "description": "OpenAI GPT-5 — active credits",
         "local": False,
     },
-    {
-        "model": "gemini-2.5-pro",
-        "family": ModelFamily.GOOGLE,
-        "tier": ModelCapabilityTier.FRONTIER,
-        "description": "Google frontier model",
-        "local": False,
-    },
-    {
-        "model": "grok-3",
-        "family": ModelFamily.XAI,
-        "tier": ModelCapabilityTier.FRONTIER,
-        "description": "xAI frontier model",
-        "local": False,
-    },
-    {
-        "model": "deepseek-r2",
-        "family": ModelFamily.DEEPSEEK,
-        "tier": ModelCapabilityTier.FRONTIER,
-        "description": "DeepSeek frontier model",
-        "local": False,
-    },
+    # {  # No credits — disabled
+    #     "model": "gemini-2.5-pro",
+    #     "family": ModelFamily.GOOGLE,
+    #     "tier": ModelCapabilityTier.FRONTIER,
+    #     "description": "Google frontier model",
+    #     "local": False,
+    # },
+    # {  # No credits — disabled
+    #     "model": "grok-3",
+    #     "family": ModelFamily.XAI,
+    #     "tier": ModelCapabilityTier.FRONTIER,
+    #     "description": "xAI frontier model",
+    #     "local": False,
+    # },
+    # {  # No credits — disabled
+    #     "model": "deepseek-r2",
+    #     "family": ModelFamily.DEEPSEEK,
+    #     "tier": ModelCapabilityTier.FRONTIER,
+    #     "description": "DeepSeek frontier model",
+    #     "local": False,
+    # },
 
     # ── Standard tier ─────────────────────────────────────────────
     {
-        "model": "claude-sonnet-4-20250514",
+        "model": "claude-sonnet-4-6",
         "family": ModelFamily.ANTHROPIC,
         "tier": ModelCapabilityTier.STANDARD,
-        "description": "Anthropic standard model",
+        "description": "Anthropic Claude 4.6 — active credits",
         "local": False,
     },
-    {
-        "model": "gpt-4o-mini",
-        "family": ModelFamily.OPENAI,
-        "tier": ModelCapabilityTier.STANDARD,
-        "description": "OpenAI standard model",
-        "local": False,
-    },
-    {
-        "model": "gemini-2.5-flash",
-        "family": ModelFamily.GOOGLE,
-        "tier": ModelCapabilityTier.STANDARD,
-        "description": "Google standard model",
-        "local": False,
-    },
-    {
-        "model": "mistral-large-latest",
-        "family": ModelFamily.MISTRAL,
-        "tier": ModelCapabilityTier.STANDARD,
-        "description": "Mistral standard model",
-        "local": False,
-    },
-    {
-        "model": "llama-3.3-70b-instruct",
-        "family": ModelFamily.META,
-        "tier": ModelCapabilityTier.STANDARD,
-        "description": "Meta standard model — self-hostable",
-        "local": True,
-    },
-    {
-        "model": "deepseek-v3",
-        "family": ModelFamily.DEEPSEEK,
-        "tier": ModelCapabilityTier.STANDARD,
-        "description": "DeepSeek standard model",
-        "local": False,
-    },
-    {
-        "model": "qwen2.5-72b-instruct",
-        "family": ModelFamily.ALIBABA,
-        "tier": ModelCapabilityTier.STANDARD,
-        "description": "Alibaba standard model",
-        "local": False,
-    },
+    # {  # No credits — disabled
+    #     "model": "gpt-4o-mini",
+    #     "family": ModelFamily.OPENAI,
+    #     "tier": ModelCapabilityTier.STANDARD,
+    #     "description": "OpenAI standard model",
+    #     "local": False,
+    # },
+    # {  # No credits — disabled
+    #     "model": "gemini-2.5-flash",
+    #     "family": ModelFamily.GOOGLE,
+    #     "tier": ModelCapabilityTier.STANDARD,
+    #     "description": "Google standard model",
+    #     "local": False,
+    # },
+    # {  # No credits — disabled
+    #     "model": "mistral-large-latest",
+    #     "family": ModelFamily.MISTRAL,
+    #     "tier": ModelCapabilityTier.STANDARD,
+    #     "description": "Mistral standard model",
+    #     "local": False,
+    # },
+    # {  # No credits — disabled
+    #     "model": "llama-3.3-70b-instruct",
+    #     "family": ModelFamily.META,
+    #     "tier": ModelCapabilityTier.STANDARD,
+    #     "description": "Meta standard model — self-hostable",
+    #     "local": True,
+    # },
+    # {  # No credits — disabled
+    #     "model": "deepseek-v3",
+    #     "family": ModelFamily.DEEPSEEK,
+    #     "tier": ModelCapabilityTier.STANDARD,
+    #     "description": "DeepSeek standard model",
+    #     "local": False,
+    # },
+    # {  # No credits — disabled
+    #     "model": "qwen2.5-72b-instruct",
+    #     "family": ModelFamily.ALIBABA,
+    #     "tier": ModelCapabilityTier.STANDARD,
+    #     "description": "Alibaba standard model",
+    #     "local": False,
+    # },
 ]
 
 # ─── Tier hierarchy ───────────────────────────────────────────────
@@ -179,19 +192,15 @@ def get_judge_1(target_tier: ModelCapabilityTier) -> dict:
     """
     Returns the fixed specialized judge for Judge 1 slot.
 
-    Standard tier target → Prometheus 2
-    Frontier tier target → Galileo Luna-2
+    Always uses Prometheus 2 (free, specialized eval model).
+    Galileo Luna-2 (frontier specialized) is disabled — no credits.
+    Re-enable by uncommenting galileo-luna-2 in JUDGE_POOL and
+    restoring the frontier branch below.
     """
-    if target_tier == ModelCapabilityTier.FRONTIER:
-        judge = next(
-            j for j in JUDGE_POOL if j["model"] == "galileo-luna-2"
-        )
-    else:
-        judge = next(
-            j for j in JUDGE_POOL
-            if j["model"] == "prometheus-eval/prometheus-bgb-8x7b-v2.0"
-        )
-
+    judge = next(
+        j for j in JUDGE_POOL
+        if j["model"] == "prometheus-eval/prometheus-bgb-8x7b-v2.0"
+    )
     logger.info(
         "judge_1_selected",
         model=judge["model"],

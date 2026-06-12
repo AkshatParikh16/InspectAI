@@ -65,14 +65,85 @@ def _update_run(run_id: str, updates: dict[str, Any]) -> None:
     conn.close()
 
 
+def _get_previous_runs(run_id: str, company_name: str, limit: int = 5) -> list:
+    """Fetch prior completed runs for this company to enable maturity-aware generation."""
+    conn = _connect()
+    rows = conn.execute(
+        """SELECT results_json, system_type FROM runs
+           WHERE company_name = ? AND id != ? AND status = 'completed'
+           ORDER BY created_at DESC LIMIT ?""",
+        [company_name, run_id, limit],
+    ).fetchall()
+    conn.close()
+
+    from inspectai.models.schemas import TestRun
+    previous = []
+    for results_json, system_type in rows:
+        if not results_json:
+            continue
+        try:
+            data = json.loads(results_json)
+            # Derive failure_breakdown from stored result list
+            failure_breakdown: dict[str, int] = {}
+            for r in data.get("results", []):
+                if not r.get("passed") and r.get("failure_type"):
+                    ft = r["failure_type"]
+                    failure_breakdown[ft] = failure_breakdown.get(ft, 0) + 1
+            previous.append(
+                TestRun(
+                    system_type=system_type or "CUSTOMER_SUPPORT",
+                    total_scenarios=data.get("total_scenarios", 0),
+                    passed=data.get("passed", 0),
+                    failed=data.get("failed", 0),
+                    pass_rate=data.get("pass_rate", 0.0),
+                    failure_breakdown=failure_breakdown,
+                )
+            )
+        except Exception:
+            pass
+    return previous
+
+
 # ── Request / response models ─────────────────────────────────────────────────
 
 class PolicyInput(BaseModel):
+    # ── Policy thresholds ──────────────────────────────────────────────────────
     refund_threshold: float = 50.0
     return_window_days: int = 30
     max_discount_percent: float = 15.0
     escalate_on_keywords: list[str] = ["manager", "supervisor", "legal"]
     prohibited_actions: list[str] = []
+
+    # ── Chatbot description ────────────────────────────────────────────────────
+    chatbot_description: str | None = None
+    use_case_categories: list[str] = []
+    allowed_actions: list[str] = []
+
+    # ── Escalation & tone ─────────────────────────────────────────────────────
+    sentiment_threshold: float = 0.3
+    max_turns_before_escalate: int = 5
+    operating_hours: str | None = None
+    after_hours_behavior: str = "ticket"
+    formality: str = "professional"
+    language: str = "en"
+    empathy_required: bool = True
+
+    # ── Compliance ────────────────────────────────────────────────────────────
+    gdpr_enabled: bool = False
+    hipaa_enabled: bool = False
+    pci_dss_enabled: bool = False
+    pii_redaction: bool = False
+    data_residency: str | None = None
+
+    # ── API / transport ───────────────────────────────────────────────────────
+    message_field: str = "message"
+    response_field: str = "message"
+    extra_fields: dict = {}
+
+    # ── Scenario generation strategy ──────────────────────────────────────────
+    deployment_status: str = "POST_DEPLOYMENT"
+    generation_strategy: str = "SMART_MIX"
+    system_maturity: str | None = None
 
 
 class StartRunRequest(BaseModel):
@@ -179,6 +250,7 @@ async def delete_run(run_id: str) -> None:
 async def _execute_run(run_id: str, body: StartRunRequest) -> None:
     """Full evaluation pipeline: generate → test → analyze → fix."""
     from inspectai.models.schemas import (
+        ComplianceConfig,
         CustomerSupportConfig,
         DeploymentStatus,
         EscalationConfig,
@@ -188,6 +260,7 @@ async def _execute_run(run_id: str, body: StartRunRequest) -> None:
         SystemType,
         TargetAPIConfig,
         TestRunConfig,
+        ToneConfig,
     )
     from inspectai.generators.scenario_generator import ScenarioGenerator
     from inspectai.runners.test_runner import TestRunner
@@ -199,19 +272,51 @@ async def _execute_run(run_id: str, body: StartRunRequest) -> None:
     try:
         p = body.policy
 
-        # ── Build SystemConfig ─────────────────────────────────────
+        # ── Build TargetAPIConfig (wire api_key to Authorization header) ──────
+        auth_headers = {"Authorization": f"Bearer {body.api_key}"} if body.api_key.strip() else {}
+        target_api_config = TargetAPIConfig(
+            url=body.target_endpoint,
+            message_field=p.message_field,
+            response_field=p.response_field,
+            extra_fields=p.extra_fields,
+            headers=auth_headers,
+        )
+
+        # ── Build SystemConfig ────────────────────────────────────────────────
         if body.system_type == "CUSTOMER_SUPPORT":
+            escalation_cfg = EscalationConfig(
+                refund_threshold=p.refund_threshold,
+                max_discount_percent=p.max_discount_percent,
+                escalate_on_keywords=p.escalate_on_keywords,
+                sentiment_threshold=p.sentiment_threshold,
+                max_turns_before_escalate=p.max_turns_before_escalate,
+                operating_hours=p.operating_hours,
+                after_hours_behavior=p.after_hours_behavior,
+            )
+            tone_cfg = ToneConfig(
+                formality=p.formality,
+                language=p.language,
+                empathy_required=p.empathy_required,
+            )
+            compliance_cfg = ComplianceConfig(
+                gdpr_enabled=p.gdpr_enabled,
+                hipaa_enabled=p.hipaa_enabled,
+                pci_dss_enabled=p.pci_dss_enabled,
+                pii_redaction=p.pii_redaction,
+                data_residency=p.data_residency,
+            )
             active_cfg = CustomerSupportConfig(
                 company_name=body.company_name,
                 industry=body.industry,
-                escalation=EscalationConfig(
-                    refund_threshold=p.refund_threshold,
-                    max_discount_percent=p.max_discount_percent,
-                    escalate_on_keywords=p.escalate_on_keywords,
-                ),
+                escalation=escalation_cfg,
+                tone=tone_cfg,
+                compliance=compliance_cfg,
                 max_refund_amount=p.refund_threshold,
                 return_window_days=p.return_window_days,
                 prohibited_actions=p.prohibited_actions,
+                allowed_actions=p.allowed_actions,
+                chatbot_description=p.chatbot_description,
+                use_case_categories=p.use_case_categories,
             )
             config = SystemConfig(
                 system_type=SystemType.CUSTOMER_SUPPORT,
@@ -224,21 +329,32 @@ async def _execute_run(run_id: str, body: StartRunRequest) -> None:
                 st = SystemType.CUSTOMER_SUPPORT
             config = SystemConfig(system_type=st)
 
+        # ── Build TestRunConfig ───────────────────────────────────────────────
+        try:
+            deploy_status = DeploymentStatus(p.deployment_status)
+        except ValueError:
+            deploy_status = DeploymentStatus.POST_DEPLOYMENT
+
         run_config = TestRunConfig(
             dry_run=body.dry_run,
             max_scenarios=body.scenario_count,
             target_url=body.target_endpoint,
-            target_api_config=TargetAPIConfig(url=body.target_endpoint),
-            deployment_status=DeploymentStatus.POST_DEPLOYMENT,
+            target_api_config=target_api_config,
+            deployment_status=deploy_status,
         )
 
-        # ── 1. Generate scenarios ──────────────────────────────────
+        # ── 1. Generate scenarios (maturity-aware via previous runs) ──────────
+        previous_runs = _get_previous_runs(run_id, body.company_name)
         generator = ScenarioGenerator()
-        scenarios = await generator.generate(config=config, run_config=run_config)
+        scenarios = await generator.generate(
+            config=config,
+            run_config=run_config,
+            previous_runs=previous_runs if previous_runs else None,
+        )
         scenarios = scenarios[: body.scenario_count]
         logger.info("scenarios_generated", run_id=run_id, count=len(scenarios))
 
-        # ── 2. Run scenarios ───────────────────────────────────────
+        # ── 2. Run scenarios ──────────────────────────────────────────────────
         runner = TestRunner(model=body.target_model)
         results = await runner.run(
             scenarios=scenarios,
@@ -260,7 +376,7 @@ async def _execute_run(run_id: str, body: StartRunRequest) -> None:
             "results": [r.model_dump(mode="json") for r in results],
         }
 
-        # ── 3. Analyze failures ────────────────────────────────────
+        # ── 3. Analyze failures ───────────────────────────────────────────────
         analyzer = FailureAnalyzer()
         analysis = await analyzer.analyze(
             results=results,
@@ -269,7 +385,7 @@ async def _execute_run(run_id: str, body: StartRunRequest) -> None:
             run_config=run_config,
         )
 
-        # ── 4. Fix recommendations ─────────────────────────────────
+        # ── 4. Fix recommendations ────────────────────────────────────────────
         recommender = FixRecommender()
         fix_report = await recommender.recommend(analysis=analysis, config=config)
 

@@ -103,7 +103,11 @@ async def self_test() -> SelfTestResult:
 
 @app.get("/")
 async def root() -> dict:
-    return {"message": "Welcome to InspectAI — Automated Adversarial Testing Pipeline"}
+    return {
+        "message": "Welcome to InspectAI — AI Quality Monitoring Platform",
+        "portal": "/dashboard",
+        "api_docs": "/docs",
+    }
 
 
 if __name__ == "__main__":
