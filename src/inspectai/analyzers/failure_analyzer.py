@@ -26,11 +26,9 @@ from collections import Counter
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import hdbscan
 import litellm
 import structlog
 from pydantic import BaseModel, Field
-from sentence_transformers import SentenceTransformer
 
 from inspectai.config import settings
 from inspectai.models.schemas import (
@@ -120,15 +118,13 @@ class FailureAnalyzer:
 
     def __init__(self, model: str | None = None) -> None:
         self.model = model or settings.default_model
-        self._embedding_model: SentenceTransformer | None = None
+        self._embedding_model = None
         self._analysis_cost = 0.0
 
-    def _get_embedding_model(self) -> SentenceTransformer:
-        """
-        Lazy loads the embedding model on first use.
-        Model is cached after first load — no repeated downloads.
-        """
+    def _get_embedding_model(self):
+        """Lazy-loads sentence-transformers only when a test run actually needs it."""
         if self._embedding_model is None:
+            from sentence_transformers import SentenceTransformer  # noqa: PLC0415
             logger.info("loading_embedding_model", model=EMBEDDING_MODEL)
             self._embedding_model = SentenceTransformer(EMBEDDING_MODEL)
             logger.info("embedding_model_loaded")
@@ -326,6 +322,7 @@ class FailureAnalyzer:
                 batch_size=32,
             )
 
+            import hdbscan  # noqa: PLC0415
             clusterer = hdbscan.HDBSCAN(
                 min_cluster_size=HDBSCAN_MIN_CLUSTER_SIZE,
                 min_samples=HDBSCAN_MIN_SAMPLES,

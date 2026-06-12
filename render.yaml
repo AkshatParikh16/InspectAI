@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: inspectai
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_PATH
+        value: /tmp/inspectai.duckdb
+      - key: LOG_LEVEL
+        value: INFO
+      # Add your real keys in the Render dashboard — never commit them
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
