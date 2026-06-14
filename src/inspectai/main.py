@@ -1,6 +1,5 @@
-from contextlib import asynccontextmanager
-
 import os
+from contextlib import asynccontextmanager
 
 import duckdb
 from fastapi import FastAPI
@@ -16,6 +15,7 @@ from inspectai.core.demo import DemoMode
 from inspectai.core.logging import get_logger, setup_logging
 from inspectai.core.middleware import _stats, limiter, logging_middleware
 from inspectai.core.self_test import SelfTest, SelfTestResult
+from inspectai.integrations.policychat import PolicyChatIntegration
 
 logger = get_logger(__name__)
 
@@ -108,6 +108,71 @@ async def root() -> dict:
         "portal": "/dashboard",
         "api_docs": "/docs",
     }
+
+
+@app.get("/integrations/policychat/health")
+async def policychat_health():
+    """
+    Checks if PolicyChat is running and Ollama is available.
+    Run this before triggering a test to verify everything is ready.
+    """
+    integration = PolicyChatIntegration()
+    return await integration.check_health()
+
+
+@app.post("/integrations/policychat/test")
+async def test_policychat(
+    scenario_count: int = 50,
+    dry_run: bool = True,
+    budget_limit_usd: float = 5.0,
+):
+    """
+    Runs a complete InspectAI test against PolicyChat.
+
+    What happens automatically:
+    1. Generates a synthetic insurance policy PDF
+    2. Uploads it to PolicyChat via POST /ingest
+    3. Generates grounded test scenarios from the PDF content
+    4. Fires scenarios at PolicyChat POST /query endpoint
+    5. Analyzes failures using HDBSCAN clustering
+    6. Generates concrete fix recommendations
+    7. Returns full results
+
+    Parameters:
+    - scenario_count: how many scenarios to generate (default 50)
+    - dry_run: if True skips real calls — tests InspectAI setup (default True)
+    - budget_limit_usd: stops if LLM cost exceeds this (default $5)
+
+    Requirements:
+    - PolicyChat running at http://localhost:8001
+    - Ollama running: ollama serve
+    """
+    integration = PolicyChatIntegration()
+    return await integration.run_full_test(
+        scenario_count=scenario_count,
+        dry_run=dry_run,
+        budget_limit_usd=budget_limit_usd,
+    )
+
+
+@app.post("/integrations/policychat/query")
+async def test_single_policychat_query(
+    query: str,
+    doc_id: str | None = None,
+):
+    """
+    Tests a single query against PolicyChat manually.
+    Useful for quick verification during development.
+
+    Parameters:
+    - query: the question to ask PolicyChat
+    - doc_id: document to query against (from previous /ingest call)
+    """
+    integration = PolicyChatIntegration()
+    return await integration.test_single_query(
+        query=query,
+        doc_id=doc_id,
+    )
 
 
 if __name__ == "__main__":
