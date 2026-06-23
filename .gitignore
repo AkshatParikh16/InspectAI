@@ -32,6 +32,10 @@ Thumbs.db
 *.swp
 *.swo
 
+# AI assistants (local config only)
+.cursor/
+.claude/
+
 # Tool caches
 .ty_cache/
 .ruff_cache/
